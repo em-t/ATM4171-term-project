@@ -14,7 +14,6 @@ def preprocess_train_data(data_path, drop_std=True):
     if drop_std:
         std_cols = [col for col in df.columns if col.endswith(".std")]
         df = df.drop(columns=std_cols)
-
     return df  
 
 def split_xy(df):

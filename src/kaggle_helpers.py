@@ -3,7 +3,7 @@ from sklearn.metrics import accuracy_score, log_loss
 
 
 def simulate_kaggle_scoring(
-    test_df,
+    X_test, y_test2, y_test4,
     model_class2,
     model_prob,
     model_class4,
@@ -15,18 +15,8 @@ def simulate_kaggle_scoring(
     probability estimation, and multiclass classification.
     Rerturns the final score.
     """
-
-    # Process the test dataset for scoring
-    std_cols = [col for col in test_df.columns if col.endswith(".std")]
-    test_df = test_df.drop(columns=std_cols)
-    test_df["class2"] = np.where(
-        test_df["class4"].eq("nonevent"), "nonevent", "event"
-    )
-    X_test = test_df.drop(columns=["class4", "class2"])
-    y_test2 = test_df["class2"]
-    y_test4 = test_df["class4"]
-
     # Calculate scores for each log_model
+    
     pred_class2 = model_class2.predict(X_test)
     pred_prob = model_prob.predict_proba(X_test)[:, 1]
     pred_class4 = model_class4.predict(X_test)
@@ -54,16 +44,15 @@ def generate_kaggle_output(
     final_test_df,
     model_prob,
     model_class4,
+    scaler=None,
 ):
     """
     Takes in the testing dataframe and models
     Generates the output format for the kaggle competition
     """
-    std_cols = [col for col in final_test_df.columns if col.endswith('.std')]
-    final_test_X = final_test_df.drop(columns=std_cols)
-    final_test_X = final_test_X.drop(columns=["id", "partlybad", "date"])
-    
-
+    final_test_X = final_test_df.drop(columns=["id"])
+    if scaler is not None:
+        final_test_X = scaler.transform(final_test_X)
     out_df = final_test_df[["id"]].copy()
     out_df["class4"] = model_class4.predict(final_test_X)
     out_df["p"] = model_prob.predict_proba(final_test_X)[:, 0]
