@@ -104,7 +104,7 @@ def boolean_to_label(
     return pd.Series(labels, name=boolean_series.name)
 
 
-def prepare_standardized_datasets(
+def prepare_standardized_datasets_binary(
     df_train: pd.DataFrame,
     df_test: pd.DataFrame,
     data_vars: list[str],
@@ -170,3 +170,34 @@ def prepare_standardized_datasets(
         df_validation = None
 
     return df_train, df_validation, df_test
+
+
+# No split
+def prepare_standardized_datasets(
+    df_train: pd.DataFrame,
+    df_test: pd.DataFrame,
+    data_vars: list[str],
+    label_var: str,
+    label_values: tuple[str, str],
+    include_validation_split: bool=True,
+    validation_split_size: float=0.2,
+    cols_to_ignore: list[str]=None
+):
+    og_label_values = df_train[label_var]
+    
+    df_train_standardized, _, df_test_standardized = prepare_standardized_datasets_binary(
+        df_train=df_train,
+        df_test=df_test,
+        data_vars=data_vars,
+        label_var=label_var,
+        label_values=label_values,
+        include_validation_split=False
+    )
+    df_train_standardized = df_train_standardized.rename(columns={"class4": "class2"})
+
+    col_order = df_train_standardized.columns.to_list()
+
+    df_train_standardized[label_var] = og_label_values
+    df_train_standardized = df_train_standardized[["class4"] + col_order]
+
+    return df_train_standardized, None, df_test_standardized
