@@ -222,3 +222,4 @@ __marimo__/
 
 # Data dir
 notebooks/data/*
+.DS_Store
