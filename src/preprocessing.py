@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import re
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -76,7 +77,38 @@ def remove_unwanted_cols(
     return df[cols_to_include]
 
 
-def combine_to_dataframe(
+def combine_label_col_to_dataframe(
+    data_df: pd.DataFrame,
+    label_df: pd.DataFrame,
+    label_col: str,
+    label_encoding_map,
+    target_label: str,
+    binary_labels: tuple[str, str],
+    binary_col_name: str = "class2",
+
+):
+    data_cols = data_df.columns.to_list()
+    df = data_df.copy()
+
+    remapped_labels = label_df.map(label_encoding_map)
+
+    df = pd.concat([df, remapped_labels], axis=1)
+
+    target_label, inverse_label = binary_labels
+
+    df[binary_col_name] = boolean_to_label(
+        boolean_series=(df[label_col] == target_label),
+        target_label=target_label,
+        inverse_label=inverse_label
+    )
+
+    col_order = [label_col, binary_col_name] + data_cols
+    df = df[col_order]
+
+    return df
+
+
+def combine_to_dataframe_old(
     data_df: pd.DataFrame,
     label_df: pd.DataFrame | None=None,
     df_for_column_reference: pd.DataFrame | None=None,
@@ -99,9 +131,103 @@ def boolean_to_label(
     target_label,
     inverse_label
 ):
-    labels = np.array([inverse_label] * len(boolean_series))
+    labels = np.array([inverse_label] * len(boolean_series), dtype=object)
     labels[boolean_series] = target_label
     return pd.Series(labels, name=boolean_series.name)
+
+
+def encode_label(
+    df,
+    label_col,
+):
+    """
+    Numeric encoding for string labels
+    """
+    unique_labels = np.unique_values(df[label_col].values)
+    label_to_number_map = dict()
+    number_to_label_map = dict()
+
+    for i in range(len(unique_labels)):
+        label_to_number_map[unique_labels[i]] = i
+        number_to_label_map[i] = unique_labels[i]
+
+    numeric_col = df[label_col].map(label_to_number_map)
+
+    return numeric_col, number_to_label_map
+
+
+def prepare_standardized_datasets(
+    df_train: pd.DataFrame,
+    df_test: pd.DataFrame,
+    data_vars: list[str],
+    label_var: str,
+    label_values: tuple[str, str],
+    include_validation_split: bool=True,
+    validation_split_size: float=0.2,
+):
+    cols_to_keep = data_vars + [label_var]
+
+    # Preliminary clean-up
+    df_train = remove_unwanted_cols(df_train, cols_to_keep)
+    df_test = remove_unwanted_cols(df_test, cols_to_keep)
+
+    encoded_labels, encoding_map = encode_label(df_train, label_var)
+
+    X = df_train.drop(columns=label_var)
+    y = encoded_labels
+    X_test = df_test
+
+    # Split data
+    if include_validation_split:
+        X_train, X_validation, y_train, y_validation = train_test_split(
+            X, y, test_size=validation_split_size, shuffle=True
+        )
+    else:
+        X_train, y_train = X, y
+        X_validation, y_validation = None, None
+
+    # TODO: remove
+    print(f"X_train.shape before scaling: {X_train.shape}")
+
+    # Standardize to mean 0, variance 1
+    X_train, scaler = standardize_data(X_train, cols_to_include=data_vars)
+    # TODO: remove
+    print(f"X_train.shape after scaling: {X_train.shape}")
+
+    if X_validation is not None:
+        X_validation = apply_scaler(scaler, X_validation, cols_to_include=data_vars)
+
+    X_test = apply_scaler(scaler, X_test, cols_to_include=data_vars)
+
+    # Combine back to dataframes
+    df_train = combine_label_col_to_dataframe(
+        data_df=X_train,
+        label_df=y_train,
+        label_col=label_var,
+        label_encoding_map=encoding_map,
+        target_label=label_values[0],
+        binary_labels=label_values
+    )
+
+    # TODO: remove
+    print(f"X_train.shape after combining: {X_train.shape}")
+
+    df_test = X_test
+
+    if (X_validation is not None) and (y_validation is not None):
+        df_validation = combine_label_col_to_dataframe(
+            data_df=X_validation,
+            label_df=y_validation,
+            label_col=label_var,
+            label_encoding_map=encoding_map,
+            target_label=label_values[0],
+            binary_labels=label_values
+        )
+    else:
+        df_validation = None
+
+    return df_train, df_validation, df_test
+
 
 
 def prepare_standardized_datasets_binary(
@@ -173,7 +299,7 @@ def prepare_standardized_datasets_binary(
 
 
 # No split
-def prepare_standardized_datasets(
+def prepare_standardized_datasets_old(
     df_train: pd.DataFrame,
     df_test: pd.DataFrame,
     data_vars: list[str],
@@ -184,7 +310,7 @@ def prepare_standardized_datasets(
     cols_to_ignore: list[str]=None
 ):
     og_label_values = df_train[label_var]
-    
+
     df_train_standardized, _, df_test_standardized = prepare_standardized_datasets_binary(
         df_train=df_train,
         df_test=df_test,
