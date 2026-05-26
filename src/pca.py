@@ -51,9 +51,9 @@ def get_features_by_importance(
     most_important_features = [features[i] for i in importance_order[:n_features]]
     return most_important_features
 
-    
+
 # Adapted from: https://stackoverflow.com/questions/39216897/plot-pca-loadings-and-loading-in-biplot-in-sklearn-like-rs-autoplot
-# Function for plotting dataset 
+# Function for plotting dataset
 def biplot(
     X,
     y,
@@ -100,7 +100,7 @@ def biplot(
     for i in range(len(unique_labels)):
         indx = labels == unique_labels[i]
         ax.scatter(scaled_x[indx], scaled_y[indx], color=scalar_map.to_rgba(i), alpha=0.5, s=30, edgecolor=(0, 0, 0, 0.5), label=unique_labels[i])
-    
+
     most_important_features = None
     if include_arrows and (pca_result is not None) and (variables is not None):
         coeff = np.transpose(pca_result.components_)
@@ -119,7 +119,7 @@ def biplot(
     ax.legend(loc="upper left")
     if title is not None:
         ax.set_title(title)
-    
+
     return most_important_features
 
 
@@ -130,11 +130,23 @@ def plot_explained_variance(
 ):
     xvals = [i for i in range(len(pve))]
     ax.plot(xvals, pve, "-o", c="r", markersize=2, label="PVE")
-    
+
     if include_cumulative:
         cum_pve = np.cumsum(pve)
         ax.plot(xvals, cum_pve, "-o", c="b", markersize=2, label="Cumulative PVE")
+        ax.axhline(0.9, linestyle="dotted", label="0.9 variance threshold")
 
     ax.grid()
     ax.set_xlabel("PC")
     ax.legend()
+
+
+def get_PCs_needed_to_explain_variance(
+    pve,
+    fraction_of_var_explained=0.9
+):
+    cum_pve = np.cumsum(pve)
+    for i in range(len(cum_pve)):
+        if cum_pve[i] >= fraction_of_var_explained:
+            return i + 1
+    return len(pve)
