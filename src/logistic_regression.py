@@ -71,7 +71,8 @@ def plot_sigmoid(
     X_train,
     y_train,
     target_label,
-    inverse_label
+    inverse_label,
+    title="Training data"
 ):
     decision_train = model.decision_function(X_train)
 
@@ -86,7 +87,8 @@ def plot_sigmoid(
     )
     y_curve = 1 / (1 + np.exp(-x_curve))
 
-    ax.plot(x_curve, y_curve, color="black", label="P(Y = 1 | βTx)")
+    legend_label = rf"$P(Y =$ {target_label} | $\beta^Tx)$"
+    ax.plot(x_curve, y_curve, color="black", label=legend_label)
     ax.axvline(0, linestyle="dotted")
     ax.axhline(0.5, linestyle="dotted", label="decision boundary")
 
@@ -100,15 +102,17 @@ def plot_sigmoid(
     )
 
     ax.scatter(
-        decision_train[y_train == inverse_label],
-        sigmoid[y_train == inverse_label],
+        decision_train[y_train != target_label],
+        sigmoid[y_train != target_label],
         color="blue",
         marker="x",
         alpha=0.7,
         label=inverse_label
     )
 
+    y_label = rf"$P(Y=$ {target_label}$)$"
     ax.set_xlabel(r"$\beta^T x$")
-    ax.set_ylabel(r"$P(Y=1)$")
+    ax.set_ylabel(y_label)
     ax.legend()
-    ax.set_title('Training data')
+    if title is not None:
+        ax.set_title(title)
